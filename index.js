@@ -57,17 +57,17 @@ fetch("./P20-12_27.json")
       },
     })
       .bindPopup(
-        (layer) => `行政区域代码：${layer.feature.properties["P20_001"] }<br/>名称：${layer.feature.properties["P20_002"] }<br/>地址：${layer.feature.properties["P20_003"] }<br/>设施类型：${layer.feature.properties["P20_004"] }<br/>容量：${layer.feature.properties["P20_005"] }<br/>`
+        (layer) => `行政区域コード：${layer.feature.properties["P20_001"] }<br/>名称：${layer.feature.properties["P20_002"] }<br/>住所：${layer.feature.properties["P20_003"] }<br/>施設の種類：${layer.feature.properties["P20_004"] }<br/>収容人数：${layer.feature.properties["P20_005"] }<br/>`
       )
       .addTo(map);
 
-    layersControl.addOverlay(landAreaLayer, "疏散设施");
+    layersControl.addOverlay(landAreaLayer, "避難施設");
   });
 
 L.Control.DataDisplay = L.Control.extend({
   onAdd: function (map) {
     const div = L.DomUtil.create("div", "data-display");
-    div.innerHTML = "<h4>可容纳人数统计信息</h4>";
+    div.innerHTML = "<h4>収容人数</h4>";
     grades.forEach((grade) => {
       div.innerHTML +=
         `<i style="background: ${grade.color};"></i>` + grade.label + "<br>";
