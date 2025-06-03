@@ -1,60 +1,565 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Leaflet 综合案例</title>
-    <!-- 引入 Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet.markercluster@l.4.1/dist/MarkerCluster.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/Markercluster.Default.css"
-    />
+<html>
+    <head>
+        <title>避難所ナビ</title>
+        <!-- LeafletのCSS読み込み -->
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+            crossorigin=""
+         />
+         <!-- Leafletのjavascript読み込み -->
+          <script
+            src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+            crossorigin=""
+          ></script>
+         <style>
+             html, body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+             }
+             #map {
+                height: 100%;
+             }
+             /* コントロールパネル */
+             .control-panel {
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                min-width: 250px;
+             }
+             .control-panel h4 {
+                margin: 0 0 10px 0;
+                color: #333;
+             }
+             .control-panel select {
+                width: 100%;
+                padding: 8px;
+                margin: 5px 0;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+             }
+             /* ボタンスタイル */
+             .control-button {
+                width: 100%;
+                padding: 10px;
+                margin: 5px 0;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                transition: all 0.3s ease;
+             }
+             .location-button {
+                background-color: #2196F3;
+                color: white;
+             }
+             .location-button:hover {
+                background-color: #1976D2;
+             }
+             .location-button:disabled {
+                background-color: #ccc;
+                cursor: not-allowed;
+             }
+             /* 情報パネル */
+             .info-panel {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                z-index: 1000;
+                width: 80%;
+                max-width: 500px;
+                display: none;
+             }
+             .info-panel h3 {
+                margin: 0 0 10px 0;
+                color: #333;
+             }
+             .info-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+             }
+             .info-item {
+                background: #f5f5f5;
+                padding: 10px;
+                border-radius: 4px;
+             }
+             .info-item strong {
+                color: #2196F3;
+             }
+             /* マーカー説明 */
+             .marker-legend {
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                background: white;
+                padding: 10px;
+                border-radius: 8px;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                z-index: 1000;
+             }
+             .marker-item {
+                display: flex;
+                align-items: center;
+                margin: 5px 0;
+             }
+             .marker-dot {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                margin-right: 8px;
+                border: 2px solid #333;
+             }
+             .current-location-dot {
+                background-color: #FDD835;
+             }
+             .shelter-dot {
+                background-color: #F44336;
+             }
+             /* 方向指示器 */
+             .direction-arrow {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 255, 255, 0.9);
+                padding: 20px;
+                border-radius: 50%;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                z-index: 1000;
+                display: none;
+             }
+             /* 地価凡例のスタイル */
+             .info.legend {
+                background: white;
+                padding: 10px;
+                font-size: 12px;
+                line-height: 18px;
+                color: #333;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                border-radius: 5px;
+                border: 1px solid #ccc;
+             }
+             .info.legend i {
+                display: inline-block;
+                border: 1px solid black;
+                border-radius: 50%;
+                width: 12px;
+                height: 12px;
+                margin-right: 8px;
+             }
+             .info.legend h3 {
+                margin: 0 0 10px 0;
+             }
+        </style>
+    </head>
+    <body>
+         <div id="map"></div>
+         <div class="marker-legend">
+             <h4>マーカー説明</h4>
+             <div class="marker-item">
+                 <div class="marker-dot current-location-dot"></div>
+                 <span>現在位置</span>
+             </div>
+             <div class="marker-item">
+                 <div class="marker-dot shelter-dot"></div>
+                 <span>避難所</span>
+             </div>
+         </div>
+         <div id="info-panel" class="info-panel">
+             <h3>避難経路情報</h3>
+             <div class="info-grid">
+                 <div class="info-item">
+                     <strong>距離</strong>
+                     <div id="distance-info">---</div>
+                 </div>
+                 <div class="info-item">
+                     <strong>予想到着時間</strong>
+                     <div id="time-info">---</div>
+                 </div>
+                 <div class="info-item">
+                     <strong>避難所の標高</strong>
+                     <div id="elevation-info">---</div>
+                 </div>
+                 <div class="info-item">
+                     <strong>収容人数</strong>
+                     <div id="capacity-info">---</div>
+                 </div>
+             </div>
+         </div>
+         <script>
+             const map = L.map('map',{
+                center: [34.39302642506987, 135.34007690909195],
+                zoom: 15
+             });
 
-    <!-- 引入 Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
+             // 現在位置を保存する変数
+             let currentLocation = null;
+             let currentLocationMarker = null;
+             let recommendedShelterMarker = null;
+             let routeLine = null;
+             let locationUpdateInterval = null;
 
-      #map {
-        height: 100%;
-        width: 100%;
-      }
+             //背景地図データ
+             const baseLayers={
+                OpenStreetMap: L.tileLayer(
+                'http://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap contributors'
+                }
+                ),
+                国土地理院写真: L.tileLayer(
+                    'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',
+                    {
+                        maxZoom: 18,
+                        attribution: '© 国土地理院'
+                    }
+                ),
+                国土地理院標準地図: L.tileLayer(
+                    'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',
+                    {
+                        maxZoom: 18,
+                        attribution: '© 国土地理院'
+                    }
+                )
+             };
+             map.addLayer(baseLayers['OpenStreetMap']);
 
-      .data-display {
-        background-color: rgba(255, 255, 255, 0.8);
-        padding: 10px;
-        border-radius: 5px;
-        margin: 10px;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-      }
+             // 避難所データ
+             const shelters = {
+                fire: {
+                    name: "火災避難所",
+                    location: [34.39502642506987, 135.34207690909195],
+                    elevation: 15,
+                    capacity: 300,
+                    facilities: ["水", "医療設備", "毛布", "非常食"],
+                    type: "屋内",
+                    contact: "072-XXX-XXXX",
+                    address: "大阪府XXX市XXX町1-1"
+                },
+                tsunami: {
+                    name: "津波避難所",
+                    location: [34.39102642506987, 135.33807690909195],
+                    elevation: 50,
+                    capacity: 200,
+                    facilities: ["水", "食料", "医療設備", "毛布"],
+                    type: "高台",
+                    contact: "072-XXX-YYYY",
+                    address: "大阪府XXX市YYY町2-2"
+                }
+             };
 
-      .data-display i {
-        display: inline-block;
-        border: 1px solid black;
-        border-radius: 50%;
-        width: 12px;
-        height: 12px;
-        margin-right: 8px;
-      }
-    </style>
-  </head>
+             // 2点間の距離を計算する関数（メートル単位）
+             function calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371e3; // 地球の半径（メートル）
+                const φ1 = lat1 * Math.PI/180;
+                const φ2 = lat2 * Math.PI/180;
+                const Δφ = (lat2-lat1) * Math.PI/180;
+                const Δλ = (lon2-lon1) * Math.PI/180;
 
-  <body>
-    <div id="map"></div>
-    <script src="index.js"></script>
-  </body>
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                        Math.cos(φ1) * Math.cos(φ2) *
+                        Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+                return R * c;
+             }
+
+             // 予想到着時間を計算する関数
+             function calculateETA(distance) {
+                const walkingSpeedKmh = 4; // 平均歩行速度 4km/h
+                const walkingSpeedMps = walkingSpeedKmh * 1000 / 3600; // m/s に変換
+                const seconds = distance / walkingSpeedMps;
+                const minutes = Math.round(seconds / 60);
+                
+                if (minutes < 60) {
+                    return `約${minutes}分`;
+                } else {
+                    const hours = Math.floor(minutes / 60);
+                    const remainingMinutes = minutes % 60;
+                    return `約${hours}時間${remainingMinutes}分`;
+                }
+             }
+
+             // 情報パネルを更新する関数
+             function updateInfoPanel(shelter, distance) {
+                const infoPanel = document.getElementById('info-panel');
+                document.getElementById('distance-info').textContent = `${Math.round(distance)}m`;
+                document.getElementById('time-info').textContent = calculateETA(distance);
+                document.getElementById('elevation-info').textContent = `${shelter.elevation}m`;
+                document.getElementById('capacity-info').textContent = `${shelter.capacity}人`;
+                infoPanel.style.display = 'block';
+             }
+
+             // 現在位置を取得する関数
+             function getCurrentLocation() {
+                const locationButton = document.querySelector('.location-button');
+                locationButton.disabled = true;
+                locationButton.textContent = '位置情報を取得中...';
+
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        currentLocation = { lat, lng };
+
+                        // 既存のマーカーを削除
+                        if (currentLocationMarker) {
+                            map.removeLayer(currentLocationMarker);
+                        }
+
+                        // 現在位置にマーカーを追加
+                        currentLocationMarker = L.marker([lat, lng], {
+                            icon: L.divIcon({
+                                className: 'current-location-marker',
+                                html: '<div style="background-color: #FDD835; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #333;"></div>'
+                            })
+                        }).addTo(map)
+                        .bindPopup('<strong>現在位置</strong>')
+                        .openPopup();
+
+                        // 地図の中心を現在位置に移動
+                        map.setView([lat, lng], 15);
+
+                        // 災害タイプが選択されている場合は避難所を更新
+                        const disasterSelect = document.getElementById('disaster-type');
+                        if (disasterSelect.value) {
+                            updateRecommendedShelter(disasterSelect.value);
+                        }
+
+                        // ボタンを有効化
+                        locationButton.disabled = false;
+                        locationButton.textContent = '現在位置を更新';
+
+                        // 定期的な位置更新を開始
+                        if (locationUpdateInterval) {
+                            clearInterval(locationUpdateInterval);
+                        }
+                        locationUpdateInterval = setInterval(updateLocation, 10000); // 10秒ごとに更新
+                    }, function(error) {
+                        alert('位置情報の取得に失敗しました: ' + error.message);
+                        locationButton.disabled = false;
+                        locationButton.textContent = '現在位置を取得';
+                    }, {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    });
+                } else {
+                    alert('お使いのブラウザは位置情報をサポートしていません。');
+                    locationButton.disabled = false;
+                    locationButton.textContent = '現在位置を取得';
+                }
+             }
+
+             // 位置情報を更新する関数
+             function updateLocation() {
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        currentLocation = { lat, lng };
+
+                        if (currentLocationMarker) {
+                            currentLocationMarker.setLatLng([lat, lng]);
+                        }
+
+                        // 避難所が選択されている場合は情報を更新
+                        const disasterSelect = document.getElementById('disaster-type');
+                        if (disasterSelect.value) {
+                            updateRecommendedShelter(disasterSelect.value);
+                        }
+                    });
+                }
+             }
+
+             // 推奨避難所を更新する関数
+             function updateRecommendedShelter(disasterType) {
+                if (!disasterType || !currentLocation) return;
+
+                // 既存の推奨避難所マーカーと経路線を削除
+                if (recommendedShelterMarker) {
+                    map.removeLayer(recommendedShelterMarker);
+                }
+                if (routeLine) {
+                    map.removeLayer(routeLine);
+                }
+
+                const shelter = shelters[disasterType];
+                if (shelter) {
+                    // 避難所までの距離を計算
+                    const distance = calculateDistance(
+                        currentLocation.lat,
+                        currentLocation.lng,
+                        shelter.location[0],
+                        shelter.location[1]
+                    );
+
+                    // 推奨避難所のマーカーを追加
+                    recommendedShelterMarker = L.marker(shelter.location, {
+                        icon: L.divIcon({
+                            className: 'shelter-marker',
+                            html: '<div style="background-color: #F44336; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #333;"></div>'
+                        })
+                    }).addTo(map)
+                    .bindPopup(`
+                        <div style="min-width: 200px;">
+                            <h3 style="margin: 0 0 10px 0;">${shelter.name}</h3>
+                            <p style="margin: 5px 0;"><strong>住所:</strong> ${shelter.address}</p>
+                            <p style="margin: 5px 0;"><strong>電話:</strong> ${shelter.contact}</p>
+                            <p style="margin: 5px 0;"><strong>収容人数:</strong> ${shelter.capacity}人</p>
+                            <p style="margin: 5px 0;"><strong>標高:</strong> ${shelter.elevation}m</p>
+                            <p style="margin: 5px 0;"><strong>施設タイプ:</strong> ${shelter.type}</p>
+                            <p style="margin: 5px 0;"><strong>設備:</strong> ${shelter.facilities.join(', ')}</p>
+                        </div>
+                    `)
+                    .openPopup();
+
+                    // 現在位置と避難所を結ぶ線を引く
+                    routeLine = L.polyline([
+                        [currentLocation.lat, currentLocation.lng],
+                        shelter.location
+                    ], {
+                        color: '#F44336',
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '10, 10'
+                    }).addTo(map);
+
+                    // 情報パネルを更新
+                    updateInfoPanel(shelter, distance);
+
+                    // 地図の表示範囲を両点が見えるように調整
+                    const bounds = L.latLngBounds([
+                        [currentLocation.lat, currentLocation.lng],
+                        shelter.location
+                    ]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+             }
+
+             // 災害タイプ選択コントロール
+             const DisasterControl = L.Control.extend({
+                options: {
+                    position: 'topright'
+                },
+
+                onAdd: function(map) {
+                    const container = L.DomUtil.create('div', 'control-panel');
+                    container.innerHTML = `
+                        <h4>避難所ナビゲーション</h4>
+                        <select id="disaster-type">
+                            <option value="">災害タイプを選択</option>
+                            <option value="fire">火災</option>
+                            <option value="tsunami">津波</option>
+                        </select>
+                        <button class="control-button location-button" onclick="getCurrentLocation()">
+                            現在位置を取得
+                        </button>
+                    `;
+
+                    L.DomEvent.disableClickPropagation(container);
+
+                    container.querySelector('select').addEventListener('change', function(e) {
+                        const disasterType = e.target.value;
+                        updateRecommendedShelter(disasterType);
+                    });
+
+                    return container;
+                }
+             });
+
+             map.addControl(new DisasterControl());
+
+             //レイヤー切り替えコントロール
+             const layerControl = L.control.layers(
+                baseLayers,
+                {},
+                {collapsed: false}
+             ).addTo(map);
+
+             // 凡例を作成
+             const legend = L.control({position: 'topleft'});
+            
+             // 凡例用の配色とラベルの定義
+             const grades = [
+                {value: 10000000, color: '#ca0000', label: '1000万円以上'},
+                {value: 1000000, color: '#ff0000', label: '100万円-1000万円'},
+                {value: 750000, color: '#ff6464', label: '75万円-100万円'},
+                {value: 500000, color: '#f08519', label: '50万円-75万円'},
+                {value: 250000, color: '#f7af67', label: '25万円-50万円'},
+                {value: 100000, color: '#f3f37c', label: '10万円-25万円'},
+                {value: 0, color: '#ffffff', label: '10万円未満'},
+             ];
+            
+             // コントロール（新しいHTML要素）を追加するときに呼び出される
+             legend.onAdd = function() {
+                const div = L.DomUtil.create('div', 'info legend');
+
+                //凡例のタイトル
+                div.innerHTML += '<h3>地価[円/m<sup>2</sup>]</h3>';
+
+                // 各範囲の色とラベルを追加
+                grades.forEach((grade) => {
+                    div.innerHTML += 
+                        `<i style="background: ${grade.color};"></i>`
+                            + grade.label + '<br>';
+                });
+
+                return div;
+             };
+
+             // 地価データを読み込む
+             fetch('./L01-24_27.geojson')
+                .then((res)=>res.json())
+                .then((json)=>{       
+                    const  circleLayer = L.geoJSON(json,{
+                        pointToLayer:(feature, latlng)=> { //円の描画にはpointToLayerを用いる
+                            const getColor = (value) => { // 地価によって色を変える関数
+                                const grade = grades.find((g) => value > g.value); // gradesから条件に一致する範囲を検索
+                                return grade ? grade.color : '#ffffff'; // 該当する色があれば色を返す。なければ白にする。
+                             };
+                             return L.circle(latlng, {
+                                radius: 300,
+                                color: 'black',
+                                fillColor: getColor(feature.properties['L01_008']),
+                                fillOpacity: 0.7,
+                                weight: 1,
+                            });
+                        },
+                    }).bindPopup(
+                        (layer)=>'地価:'+layer.feature.properties['L01_008'],
+                        ).addTo(map);
+                    
+                    // レイヤー一覧に追加
+                    layerControl.addOverlay(circleLayer,'地価');
+
+                    // デフォルトで凡例を表示
+                    legend.addTo(map);
+
+                    // レイヤーコントロールのイベントリスナーで凡例を切り替える
+                    map.on('overlayadd', (e) => {
+                        if (e.name === '地価') {
+                            legend.addTo(map); // 凡例を地図に追加
+                        }
+                    });
+
+                    map.on('overlayremove', (e) => {
+                        if (e.name === '地価') {
+                            map.removeControl(legend); // 凡例を地図から削除
+                        }
+                    });
+                });
+         </script>
+    </body>
 </html>
+              
